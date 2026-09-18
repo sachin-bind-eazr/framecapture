@@ -1,4 +1,4 @@
-# Together for Good photo booth
+# Joy of Giving photo booth
 
 A client-side, mobile-first event photo booth. Photos are composed in the browser and are not uploaded or stored by this application.
 
@@ -13,7 +13,7 @@ Open `http://localhost:3000`. Camera access requires HTTPS on deployed domains (
 
 ## Customize for an event
 
-Edit [`config/event.ts`](config/event.ts) for the event name, copy, image dimensions, default camera, and frame list. Replace [`public/frames/event-frame.png`](public/frames/event-frame.png) with the approved transparent 1080 × 1350 PNG containing the real NGO, company, and sponsor artwork. The supplied frame has generic `YOUR NGO` and `YOUR SPONSOR` wordmarks because the final logos were not provided.
+Edit [`config/event.ts`](config/event.ts) for the event name, copy, image dimensions, default camera, and frame list. The active [`Joy of Giving frame`](public/frames/joy-of-giving-frame.png) is a transparent square PNG with The Good Box Project and Witty artwork. The original uploaded file is retained in `public/frames/`.
 
 Keep the PNG canvas at the same aspect ratio as `outputWidth`/`outputHeight`. The camera preview and exported image both fill that entire rectangle with a centered cover crop, then place the PNG over it. The frame's central opening should be transparent.
 

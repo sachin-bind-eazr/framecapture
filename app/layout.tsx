@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Capture the Moment | Together for Good",
+  title: "Share the Joy | Joy of Giving",
   description: "Take and share your framed event photo in seconds.",
 };
 
@@ -14,5 +14,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+  return <html lang="en"><head><link rel="preload" href="/frames/joy-of-giving-frame.png" as="image" /></head><body>{children}</body></html>;
 }

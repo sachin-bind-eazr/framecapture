@@ -1,11 +1,11 @@
 export const EVENT_CONFIG = {
-  eventName: "Together for Good",
-  headline: "Capture the Moment",
-  subtitle: "Take a photo and share your support.",
-  shareText: "Sharing my moment from Together for Good 💚",
-  frames: [{ id: "signature", src: "/frames/event-frame.png", alt: "Together for Good event frame" }],
+  eventName: "Joy of Giving",
+  headline: "Share the Joy",
+  subtitle: "Take a photo and share the joy of giving.",
+  shareText: "Sharing my moment from Joy of Giving ❤️",
+  frames: [{ id: "signature", src: "/frames/joy-of-giving-frame.png", alt: "Joy of Giving event frame" }],
   outputWidth: 1080,
-  outputHeight: 1350,
+  outputHeight: 1080,
   cameraFacingMode: "user" as const,
   mirrorFrontCamera: true,
 };
