@@ -5,7 +5,7 @@ import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import { EVENT_CONFIG } from "@/config/event";
 import { attachCameraStream, CameraFacingMode, getCameraErrorMessage, startCamera, stopCamera } from "@/lib/camera";
 import { composeEventPhoto, composeUploadedPhoto } from "@/lib/imageComposer";
-import { canSharePhoto, downloadPhoto, makePhotoFilename, sharePhoto } from "@/lib/share";
+import { canSharePhoto, downloadPhoto, isIOSDevice, makePhotoFilename, sharePhoto } from "@/lib/share";
 
 type Stage = "intro" | "requesting" | "camera" | "processing" | "preview" | "error";
 type Photo = { blob: Blob; url: string };
@@ -29,6 +29,7 @@ export default function EventPhotoBooth() {
   const [error, setError] = useState("Camera access is needed to take your event photo.");
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [shareFallback, setShareFallback] = useState(false);
+  const [saveHint, setSaveHint] = useState("");
   const [flash, setFlash] = useState(false);
   const [frameReady, setFrameReady] = useState(false);
   const [needsPlaybackTap, setNeedsPlaybackTap] = useState(false);
@@ -45,6 +46,7 @@ export default function EventPhotoBooth() {
     photoRef.current = null;
     setPhoto(null);
     setShareFallback(false);
+    setSaveHint("");
   }, []);
 
   useEffect(() => {
@@ -166,7 +168,22 @@ export default function EventPhotoBooth() {
       streamRef.current = null;
     }
   };
-  const save = () => { if (photo) downloadPhoto(photo.blob, makePhotoFilename(EVENT_CONFIG.eventName)); };
+  const save = async () => {
+    if (!photo) return;
+    const filename = makePhotoFilename(EVENT_CONFIG.eventName);
+    if (isIOSDevice()) {
+      if (canSharePhoto(photo.blob, filename)) {
+        setSaveHint("In the share sheet, choose Save Image or Save to Files.");
+        const result = await sharePhoto({ blob: photo.blob, filename, title: "Save your photo" });
+        if (result === "unsupported") setSaveHint("Touch and hold the photo above, then choose Save Image.");
+      } else {
+        setSaveHint("Touch and hold the photo above, then choose Save Image.");
+      }
+      return;
+    }
+    downloadPhoto(photo.blob, filename);
+    setSaveHint("Photo download started. Check your Downloads folder.");
+  };
   const share = async () => {
     if (!photo) return;
     if (!canSharePhoto(photo.blob)) { setShareFallback(true); return; }
@@ -203,7 +220,7 @@ export default function EventPhotoBooth() {
         <p className="camera-hint">Place yourself inside the frame</p>
       </section>}
 
-      {stage === "preview" && photo && <section className="preview-screen screen-enter" aria-label="Photo preview"><header className="preview-header"><WittyLogo /><div><span className="camera-overline">YOUR MOMENT IS READY</span><strong>Looking good!</strong></div><span className="header-spark" aria-hidden="true">✳</span></header><div className="preview-main"><img className="result-photo" src={photo.url} alt={`Your photo with the ${EVENT_CONFIG.eventName} event frame`} style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${EVENT_CONFIG.outputHeight}` }} /></div><div className="preview-actions"><p className="preview-caption">Share your moment <span>❤️</span></p><button className="button button--primary" aria-label="Share photo" onClick={() => void share()}>Share Photo <Icon name="arrow" /></button><button className="button button--secondary" aria-label="Download photo" onClick={save}><Icon name="download" /> Save Photo</button>{shareFallback && <p className="fallback-note" role="status">Save the photo, then share it on Instagram, WhatsApp or Facebook.</p>}<button className="text-action retake" aria-label="Retake photo" onClick={retake}>Retake</button></div></section>}
+      {stage === "preview" && photo && <section className="preview-screen screen-enter" aria-label="Photo preview"><header className="preview-header"><WittyLogo /><div><span className="camera-overline">YOUR MOMENT IS READY</span><strong>Looking good!</strong></div><span className="header-spark" aria-hidden="true">✳</span></header><div className="preview-main"><img className="result-photo" src={photo.url} alt={`Your photo with the ${EVENT_CONFIG.eventName} event frame`} style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${EVENT_CONFIG.outputHeight}` }} /></div><div className="preview-actions"><p className="preview-caption">Share your moment <span>❤️</span></p><button className="button button--primary" aria-label="Share photo" onClick={() => void share()}>Share Photo <Icon name="arrow" /></button><button className="button button--secondary" aria-label="Save photo" onClick={() => void save()}><Icon name="download" /> Save Photo</button>{saveHint && <p className="save-note" role="status">{saveHint}</p>}{shareFallback && <p className="fallback-note" role="status">Save the photo, then share it on Instagram, WhatsApp or Facebook.</p>}<button className="text-action retake" aria-label="Retake photo" onClick={retake}>Retake</button></div></section>}
 
       {stage === "error" && <section className="error-screen screen-enter" aria-labelledby="error-title"><WittyLogo /><div className="error-icon" aria-hidden="true">✳</div><p className="kicker">LET’S TRY ANOTHER WAY</p><h1 id="error-title">Your moment<br/><em>is still waiting.</em></h1><p className="error-message" role="alert">{error}</p><div className="error-actions"><button className="button button--primary" onClick={() => void openCamera()}>Try Again <Icon name="arrow" /></button><button className="button button--secondary" onClick={() => inputRef.current?.click()} disabled={!frameReady}><Icon name="upload" /> Upload Photo Instead</button></div><p className="privacy">Photos are processed on your device.</p></section>}
       {flash && <div className="flash" aria-hidden="true" />}

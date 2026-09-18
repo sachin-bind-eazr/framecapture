@@ -1,5 +1,11 @@
 export type SharePhotoResult = "shared" | "unsupported" | "cancelled";
 
+export function isIOSDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 export interface SharePhotoOptions {
   blob: Blob;
   filename?: string;
