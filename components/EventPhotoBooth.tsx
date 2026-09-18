@@ -27,6 +27,7 @@ export default function EventPhotoBooth() {
   const [shareFallback, setShareFallback] = useState(false);
   const [flash, setFlash] = useState(false);
   const [frameReady, setFrameReady] = useState(false);
+  const [needsPlaybackTap, setNeedsPlaybackTap] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const frameRef = useRef<HTMLImageElement | null>(null);
@@ -56,6 +57,10 @@ export default function EventPhotoBooth() {
   useEffect(() => {
     if (stage !== "camera" || !streamRef.current || !videoRef.current) return;
     attachCameraStream(videoRef.current, streamRef.current).catch((cause) => {
+      if (cause instanceof Error && cause.name === "NotAllowedError") {
+        setNeedsPlaybackTap(true);
+        return;
+      }
       setError(getCameraErrorMessage(cause));
       setStage("error");
       stopCamera(streamRef.current);
@@ -67,6 +72,7 @@ export default function EventPhotoBooth() {
     const requestId = ++requestIdRef.current;
     stopCamera(streamRef.current);
     streamRef.current = null;
+    setNeedsPlaybackTap(false);
     setStage("requesting");
     try {
       const stream = await startCamera(mode);
@@ -83,7 +89,7 @@ export default function EventPhotoBooth() {
 
   const capture = async () => {
     const video = videoRef.current;
-    if (!video || !frameRef.current || !video.videoWidth || stage !== "camera") return;
+    if (!video || !frameRef.current || !video.videoWidth || needsPlaybackTap || stage !== "camera") return;
     setFlash(true);
     window.setTimeout(() => setFlash(false), 220);
     setStage("processing");
@@ -144,6 +150,18 @@ export default function EventPhotoBooth() {
   };
 
   const retake = () => { clearPhoto(); void openCamera(); };
+  const resumePlayback = async () => {
+    if (!videoRef.current) return;
+    try {
+      await videoRef.current.play();
+      setNeedsPlaybackTap(false);
+    } catch {
+      setError("The camera opened, but the preview could not start. Try again or upload a photo instead.");
+      setStage("error");
+      stopCamera(streamRef.current);
+      streamRef.current = null;
+    }
+  };
   const save = () => { if (photo) downloadPhoto(photo.blob, makePhotoFilename(EVENT_CONFIG.eventName)); };
   const share = async () => {
     if (!photo) return;
@@ -175,8 +193,9 @@ export default function EventPhotoBooth() {
           <img className="frame-overlay" src={activeFrame.src} alt="" draggable={false} />
           {stage === "requesting" && <div className="view-status"><span className="spinner" />Opening camera…</div>}
           {stage === "processing" && <div className="view-status"><span className="spinner" />Preparing your photo…</div>}
+          {stage === "camera" && needsPlaybackTap && <div className="view-status"><button className="button button--primary playback-button" onClick={() => void resumePlayback()}>Tap to start camera</button></div>}
         </div></div>
-        <div className="camera-controls"><button className="icon-button" aria-label="Upload photo" onClick={() => inputRef.current?.click()} disabled={stage === "processing"}><Icon name="upload" /><span>Upload</span></button><button className="shutter" aria-label="Take photo" onClick={() => void capture()} disabled={stage !== "camera"}><span /></button><button className="icon-button" aria-label="Switch camera" onClick={() => void openCamera(facing === "user" ? "environment" : "user")} disabled={stage !== "camera"}><Icon name="flip" /><span>Flip</span></button></div>
+        <div className="camera-controls"><button className="icon-button" aria-label="Upload photo" onClick={() => inputRef.current?.click()} disabled={stage === "processing"}><Icon name="upload" /><span>Upload</span></button><button className="shutter" aria-label="Take photo" onClick={() => void capture()} disabled={stage !== "camera" || needsPlaybackTap}><span /></button><button className="icon-button" aria-label="Switch camera" onClick={() => void openCamera(facing === "user" ? "environment" : "user")} disabled={stage !== "camera"}><Icon name="flip" /><span>Flip</span></button></div>
         <p className="camera-hint">Place yourself inside the frame</p>
       </section>}
 

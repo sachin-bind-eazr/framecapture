@@ -67,6 +67,9 @@ export function getCameraErrorMessage(error: unknown): string {
     case "NotAllowedError":
     case "PermissionDeniedError":
     case "SecurityError":
+      if (typeof navigator !== "undefined" && /CriOS/.test(navigator.userAgent)) {
+        return "Chrome cannot access the camera yet. Tap the camera icon beside the address bar and allow this site. If no prompt appears, enable Camera for Chrome in iPhone Settings, then try again.";
+      }
       return "Camera access is needed to take your event photo. Allow access in your browser settings or upload a photo instead.";
     case "NotFoundError":
     case "DevicesNotFoundError":
