@@ -19,6 +19,10 @@ function Icon({ name }: { name: "flip" | "upload" | "arrow" | "download" | "spar
   return <svg {...common}><path d="m12 2 1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2ZM19 17l.7 2.3L22 20l-2.3.7L19 23l-.7-2.3L16 20l2.3-.7L19 17Z"/></svg>;
 }
 
+function WittyLogo() {
+  return <img className="witty-logo" src="/frames/Witty_Logo%201.png" alt="Witty" width={190} height={52} />;
+}
+
 export default function EventPhotoBooth() {
   const [stage, setStage] = useState<Stage>("intro");
   const [facing, setFacing] = useState<CameraFacingMode>(EVENT_CONFIG.cameraFacingMode);
@@ -186,7 +190,7 @@ export default function EventPhotoBooth() {
       </section>}
 
       {(stage === "requesting" || stage === "camera" || stage === "processing") && <section className="camera-screen screen-enter" aria-label="Camera">
-        <header className="camera-header"><span className="brand-mark">j<span>g</span></span><div><span className="camera-overline">{EVENT_CONFIG.eventName.toUpperCase()}</span><strong>{EVENT_CONFIG.headline}</strong></div><span className="header-spark" aria-hidden="true">✳</span></header>
+        <header className="camera-header"><WittyLogo /><div><span className="camera-overline">{EVENT_CONFIG.eventName.toUpperCase()}</span><strong>{EVENT_CONFIG.headline}</strong></div><span className="header-spark" aria-hidden="true">✳</span></header>
         <div className="camera-main"><div className="viewfinder" style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${EVENT_CONFIG.outputHeight}` }}>
           <video ref={videoRef} autoPlay playsInline muted className={`camera-video ${facing === "user" && EVENT_CONFIG.mirrorFrontCamera ? "camera-video--mirror" : ""}`} aria-label="Live camera preview" />
           {/* The exact PNG pixels must align with the canvas export. */}
@@ -199,9 +203,9 @@ export default function EventPhotoBooth() {
         <p className="camera-hint">Place yourself inside the frame</p>
       </section>}
 
-      {stage === "preview" && photo && <section className="preview-screen screen-enter" aria-label="Photo preview"><header className="preview-header"><span className="brand-mark">j<span>g</span></span><div><span className="camera-overline">YOUR MOMENT IS READY</span><strong>Looking good!</strong></div><span className="header-spark" aria-hidden="true">✳</span></header><div className="preview-main"><img className="result-photo" src={photo.url} alt={`Your photo with the ${EVENT_CONFIG.eventName} event frame`} style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${EVENT_CONFIG.outputHeight}` }} /></div><div className="preview-actions"><p className="preview-caption">Share your moment <span>❤️</span></p><button className="button button--primary" aria-label="Share photo" onClick={() => void share()}>Share Photo <Icon name="arrow" /></button><button className="button button--secondary" aria-label="Download photo" onClick={save}><Icon name="download" /> Save Photo</button>{shareFallback && <p className="fallback-note" role="status">Save the photo, then share it on Instagram, WhatsApp or Facebook.</p>}<button className="text-action retake" aria-label="Retake photo" onClick={retake}>Retake</button></div></section>}
+      {stage === "preview" && photo && <section className="preview-screen screen-enter" aria-label="Photo preview"><header className="preview-header"><WittyLogo /><div><span className="camera-overline">YOUR MOMENT IS READY</span><strong>Looking good!</strong></div><span className="header-spark" aria-hidden="true">✳</span></header><div className="preview-main"><img className="result-photo" src={photo.url} alt={`Your photo with the ${EVENT_CONFIG.eventName} event frame`} style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${EVENT_CONFIG.outputHeight}` }} /></div><div className="preview-actions"><p className="preview-caption">Share your moment <span>❤️</span></p><button className="button button--primary" aria-label="Share photo" onClick={() => void share()}>Share Photo <Icon name="arrow" /></button><button className="button button--secondary" aria-label="Download photo" onClick={save}><Icon name="download" /> Save Photo</button>{shareFallback && <p className="fallback-note" role="status">Save the photo, then share it on Instagram, WhatsApp or Facebook.</p>}<button className="text-action retake" aria-label="Retake photo" onClick={retake}>Retake</button></div></section>}
 
-      {stage === "error" && <section className="error-screen screen-enter" aria-labelledby="error-title"><span className="brand-mark brand-mark--large">j<span>g</span></span><div className="error-icon" aria-hidden="true">✳</div><p className="kicker">LET’S TRY ANOTHER WAY</p><h1 id="error-title">Your moment<br/><em>is still waiting.</em></h1><p className="error-message" role="alert">{error}</p><div className="error-actions"><button className="button button--primary" onClick={() => void openCamera()}>Try Again <Icon name="arrow" /></button><button className="button button--secondary" onClick={() => inputRef.current?.click()} disabled={!frameReady}><Icon name="upload" /> Upload Photo Instead</button></div><p className="privacy">Photos are processed on your device.</p></section>}
+      {stage === "error" && <section className="error-screen screen-enter" aria-labelledby="error-title"><WittyLogo /><div className="error-icon" aria-hidden="true">✳</div><p className="kicker">LET’S TRY ANOTHER WAY</p><h1 id="error-title">Your moment<br/><em>is still waiting.</em></h1><p className="error-message" role="alert">{error}</p><div className="error-actions"><button className="button button--primary" onClick={() => void openCamera()}>Try Again <Icon name="arrow" /></button><button className="button button--secondary" onClick={() => inputRef.current?.click()} disabled={!frameReady}><Icon name="upload" /> Upload Photo Instead</button></div><p className="privacy">Photos are processed on your device.</p></section>}
       {flash && <div className="flash" aria-hidden="true" />}
     </div>
   </main>;
