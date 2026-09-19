@@ -5,7 +5,7 @@ export const EVENT_CONFIG = {
   shareText: "Sharing my moment from Joy of Giving ❤️",
   frames: [{ id: "signature", src: "/frames/joy-of-giving-frame.png", alt: "Joy of Giving event frame" }],
   outputWidth: 1080,
-  outputHeight: 1080,
+  outputHeight: 1350,
   cameraFacingMode: "user" as const,
   mirrorFrontCamera: true,
 };
