@@ -75,6 +75,8 @@ export default function EventPhotoBooth() {
   const activeFrame = EVENT_CONFIG.frames[activeFrameIndex];
   const lensIndexes = useMemo(() => {
     const count = EVENT_CONFIG.frames.length;
+    if (count === 1) return [0];
+    if (count === 2) return [(activeFrameIndex + 1) % 2, activeFrameIndex];
     return [(activeFrameIndex - 1 + count) % count, activeFrameIndex, (activeFrameIndex + 1) % count];
   }, [activeFrameIndex]);
 
@@ -434,17 +436,17 @@ export default function EventPhotoBooth() {
 
     {(stage === "requesting" || stage === "camera" || stage === "processing") && <section className="camera-screen screen-enter" aria-label="Camera">
       <div className="camera-main">
-        <div className="viewfinder" onPointerDown={handleSwipeStart} onPointerUp={handleSwipeEnd} onPointerCancel={() => { swipeStartXRef.current = null; }} style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${EVENT_CONFIG.outputHeight}` }}>
+        <div className="viewfinder" onPointerDown={handleSwipeStart} onPointerUp={handleSwipeEnd} onPointerCancel={() => { swipeStartXRef.current = null; }} style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${Math.round(EVENT_CONFIG.outputHeight * 1.025)}` }}>
           <video ref={videoRef} autoPlay playsInline muted className={`camera-video ${facing === "user" && EVENT_CONFIG.mirrorFrontCamera ? "camera-video--mirror" : ""}`} aria-label="Live camera preview" />
           <img key={activeFrame.id} className="frame-overlay frame-overlay--enter" src={activeFrame.src} alt="" draggable={false}/>
           {stage === "requesting" && <div className="view-status"><span className="spinner"/>Opening camera…</div>}
           {stage === "processing" && <div className="view-status"><span className="spinner"/>Preparing your photo…</div>}
           {stage === "camera" && needsPlaybackTap && <div className="view-status"><button className="button button--primary playback-button" onClick={() => void resumePlayback()}>Tap to start camera</button></div>}
         </div>
-        <div className="lens-rail" role="group" aria-label="Choose a frame and take a photo">{lensIndexes.map((index, position) => {
+        <div className={`lens-rail ${EVENT_CONFIG.frames.length === 2 ? "lens-rail--two" : ""}`} role="group" aria-label="Choose a frame and take a photo">{lensIndexes.map((index) => {
           const frame = EVENT_CONFIG.frames[index];
-          const selected = position === 1;
-          return <button key={`${frame.id}-${position}`} className={`lens-button ${selected ? "lens-button--active" : ""}`} onClick={() => handleLensClick(index)} disabled={stage !== "camera" || needsPlaybackTap} aria-label={selected ? `Take photo with frame ${index + 1}` : `Select frame ${index + 1}`}><img src={frame.src} alt=""/><span className="lens-shutter" aria-hidden="true"/></button>;
+          const selected = index === activeFrameIndex;
+          return <button key={frame.id} className={`lens-button ${selected ? "lens-button--active" : ""}`} onClick={() => handleLensClick(index)} disabled={stage !== "camera" || needsPlaybackTap} aria-label={selected ? `Take photo with frame ${index + 1}` : `Select frame ${index + 1}`}><img src={frame.src} alt=""/><span className="lens-shutter" aria-hidden="true"/></button>;
         })}</div>
         <div className="camera-utility-row"><button className="utility-button" onClick={() => setGalleryOpen(true)} aria-label={`Open photo gallery, ${galleryPhotos.length} photos`}><span className="gallery-button-visual">{galleryPhotos[0] ? <img src={galleryPhotos[0].url} alt=""/> : <Icon name="gallery"/>}{galleryPhotos.length > 0 && <b>{galleryPhotos.length}</b>}</span><small>Gallery</small></button><button className="utility-button" onClick={() => inputRef.current?.click()} disabled={stage !== "camera" || !frameReady} aria-label="Upload from gallery"><Icon name="upload"/><small>Upload</small></button><button className="utility-button" onClick={() => void openCamera(facing === "user" ? "environment" : "user", false)} disabled={stage !== "camera"} aria-label="Switch camera"><Icon name="flip"/><small>Flip</small></button></div>
         {galleryOpen && <div className={`gallery-drawer ${drawerClosing ? "gallery-drawer--closing" : ""}`} style={drawerDragY ? { transform: `translate3d(0, ${drawerDragY}px, 0)` } : undefined} onPointerDown={handleDrawerStart} onPointerMove={handleDrawerMove} onPointerUp={handleDrawerEnd} onPointerCancel={() => { drawerStartYRef.current = null; setDrawerDragY(0); }}>{galleryGrid(true)}</div>}

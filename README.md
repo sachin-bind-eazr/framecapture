@@ -13,7 +13,7 @@ Open `http://localhost:3000`. Camera access requires HTTPS on deployed domains (
 
 ## Customize for an event
 
-Edit [`config/event.ts`](config/event.ts) for the event name, copy, image dimensions, default camera, and frame list. The active [`Joy of Giving frame`](public/frames/joy-of-giving-frame.png) is a transparent square PNG with The Good Box Project and Witty artwork. The original uploaded file is retained in `public/frames/`.
+Edit [`config/event.ts`](config/event.ts) for the event name, copy, image dimensions, default camera, and frame list. The active transparent overlays are [`new1.png`](public/frames/new1.png) and [`joy-festival-frame.png`](public/frames/joy-festival-frame.png).
 
 Keep the PNG canvas at the same aspect ratio as `outputWidth`/`outputHeight`. The camera preview and exported image both fill that entire rectangle with a centered cover crop, then place the PNG over it. The frame's central opening should be transparent.
 

@@ -8,9 +8,8 @@ export const EVENT_CONFIG = {
   ],
   shareText: "I shared the joy this Joy of Giving Week. Join the movement and tag @thegoodboxproject and @wittyinternationalschool! ❤️",
   frames: [
-    { id: "joy", src: "/frames/joy-of-giving-frame-q92.webp", alt: "Joy of Giving school frame" },
-    { id: "frame-2", src: "/frames/frame2-q92.webp", alt: "Joy of Giving frame two" },
-    { id: "frame-3", src: "/frames/frame3-q92.webp", alt: "Joy of Giving frame three" },
+    { id: "joy-books", src: "/frames/new1.png", alt: "Joy of Giving books and kindness frame" },
+    { id: "joy-festival", src: "/frames/joy-festival-frame.png", alt: "Joy of Giving Festival frame" },
   ],
   outputWidth: 1080,
   outputHeight: 1350,

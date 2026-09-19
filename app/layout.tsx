@@ -14,5 +14,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><head><link rel="preload" href="/frames/joy-of-giving-frame-q92.webp" as="image" type="image/webp" /></head><body suppressHydrationWarning>{children}</body></html>;
+  return <html lang="en"><head><link rel="preload" href="/frames/new1.png" as="image" type="image/png" /></head><body suppressHydrationWarning>{children}</body></html>;
 }
