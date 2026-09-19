@@ -404,7 +404,7 @@ export default function EventPhotoBooth() {
       <div><span className="gallery-kicker">ON THIS DEVICE</span><h2>Your moments</h2></div>
       <span className="gallery-count">{galleryPhotos.length}/{MAX_STORED_PHOTOS}</span>
     </div>
-    {galleryPhotos.length ? <div className="gallery-grid">{galleryPhotos.map((item) => <article className="gallery-tile" key={item.id}>
+    {galleryPhotos.length ? <div className={`gallery-grid ${galleryPhotos.length <= 6 ? "gallery-grid--draggable" : ""}`}>{galleryPhotos.map((item) => <article className="gallery-tile" key={item.id}>
       <button className="gallery-photo-button" onClick={() => openGalleryPhoto(item)} aria-label="Open saved photo"><img src={item.url} alt="Saved event photo" /></button>
       <button className="gallery-delete" onClick={() => void removeGalleryPhoto(item.id)} aria-label="Delete saved photo"><Icon name="trash" /></button>
     </article>)}</div> : <div className="gallery-empty"><Icon name="gallery" /><strong>No photos yet</strong><span>Your captured photos will appear here.</span></div>}
@@ -417,10 +417,19 @@ export default function EventPhotoBooth() {
     <input ref={inputRef} className="sr-only" type="file" accept="image/*" onChange={upload} aria-label="Upload photo" />
 
     {stage === "intro" && <section className="intro screen-enter" aria-labelledby="intro-title">
-      <WittyLogo/>
-      <div className="intro-brand-art"><img src="/frames/Image%20(4).png" alt="The Good Box Project"/></div>
-      <div className="intro-copy"><h1 id="intro-title">Share<br/><em>the Joy.</em></h1></div>
-      <div className="intro-actions"><button className="button button--primary" onClick={() => void openCamera(facing, true)} disabled={!frameReady}>Capture Your Moment <Icon name="arrow"/></button>{galleryPhotos.length > 0 && <button className="button button--ghost" onClick={() => setStage("gallery")}><Icon name="gallery"/> View Photos ({galleryPhotos.length})</button>}<p className="privacy">Photos stay in this browser unless you share them.</p></div>
+      <div className="intro-brand-row" aria-label="Witty and The Good Box Project">
+        <div className="intro-brand-logo"><WittyLogo/></div>
+        <span className="brand-collaboration" aria-hidden="true">×</span>
+        <div className="intro-brand-logo"><img src="/frames/Image%20(4).png" alt="The Good Box Project"/></div>
+      </div>
+      <div className="campaign-hero">
+        <div className="campaign-heart" aria-hidden="true">♥</div>
+        <p className="kicker">JOY OF GIVING WEEK</p>
+        <h1 id="intro-title">Give. Capture.<br/><em>Share the Joy.</em></h1>
+        <p className="campaign-copy">Your act of giving can inspire someone else. Donate, capture your moment, and share it on Instagram, Facebook or WhatsApp.</p>
+        <div className="tag-reminder"><span aria-hidden="true">@</span><p>Don’t forget to tag us on Instagram<strong>{EVENT_CONFIG.instagramHandles.map((account, index) => <span key={account.handle}>{index > 0 && " · "}<a href={account.url} target="_blank" rel="noreferrer">{account.handle}</a></span>)}</strong></p></div>
+      </div>
+      <div className="intro-actions"><button className="button button--primary" onClick={() => void openCamera(facing, true)} disabled={!frameReady}>Capture &amp; Share Your Moment <Icon name="arrow"/></button>{galleryPhotos.length > 0 && <button className="button button--ghost" onClick={() => setStage("gallery")}><Icon name="gallery"/> View Photos ({galleryPhotos.length})</button>}<p className="privacy">Photos stay on this device until you choose to share them.</p></div>
     </section>}
 
     {(stage === "requesting" || stage === "camera" || stage === "processing") && <section className="camera-screen screen-enter" aria-label="Camera">
