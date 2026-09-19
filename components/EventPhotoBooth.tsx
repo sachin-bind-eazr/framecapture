@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Native img keeps the frame and local blob pixel-aligned with the canvas. */
 
-import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { EVENT_CONFIG } from "@/config/event";
 import { attachCameraStream, CameraFacingMode, getCameraErrorMessage, startCamera, stopCamera } from "@/lib/camera";
 import { composeEventPhoto, composeUploadedPhoto } from "@/lib/imageComposer";
@@ -32,14 +32,17 @@ export default function EventPhotoBooth() {
   const [saveHint, setSaveHint] = useState("");
   const [flash, setFlash] = useState(false);
   const [frameReady, setFrameReady] = useState(false);
+  const [activeFrameIndex, setActiveFrameIndex] = useState(0);
   const [needsPlaybackTap, setNeedsPlaybackTap] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const frameRef = useRef<HTMLImageElement | null>(null);
+  const frameImagesRef = useRef(new Map<string, HTMLImageElement>());
   const streamRef = useRef<MediaStream | null>(null);
   const photoRef = useRef<Photo | null>(null);
   const requestIdRef = useRef(0);
-  const activeFrame = EVENT_CONFIG.frames[0];
+  const swipeStartXRef = useRef<number | null>(null);
+  const activeFrame = EVENT_CONFIG.frames[activeFrameIndex];
 
   const clearPhoto = useCallback(() => {
     if (photoRef.current) URL.revokeObjectURL(photoRef.current.url);
@@ -52,13 +55,51 @@ export default function EventPhotoBooth() {
   useEffect(() => {
     const requestId = requestIdRef;
     const stream = streamRef;
-    const image = new Image();
-    image.decoding = "async";
-    image.onload = () => { frameRef.current = image; setFrameReady(true); };
-    image.onerror = () => { setError("The event frame could not load. Please refresh and try again."); setStage("error"); };
-    image.src = activeFrame.src;
-    return () => { requestId.current++; stopCamera(stream.current); clearPhoto(); };
-  }, [activeFrame.src, clearPhoto]);
+    let cancelled = false;
+    const loadFrames = async () => {
+      try {
+        const loaded = await Promise.all(EVENT_CONFIG.frames.map((frame) => new Promise<[string, HTMLImageElement]>((resolve, reject) => {
+          const image = new Image();
+          image.decoding = "async";
+          image.onload = () => resolve([frame.id, image]);
+          image.onerror = () => reject(new Error(`Could not load ${frame.id}`));
+          image.src = frame.src;
+        })));
+        if (cancelled) return;
+        frameImagesRef.current = new Map(loaded);
+        frameRef.current = frameImagesRef.current.get(EVENT_CONFIG.frames[0].id) ?? null;
+        setFrameReady(true);
+      } catch {
+        if (cancelled) return;
+        setError("The event frames could not load. Please refresh and try again.");
+        setStage("error");
+      }
+    };
+    void loadFrames();
+    return () => { cancelled = true; requestId.current++; stopCamera(stream.current); clearPhoto(); };
+  }, [clearPhoto]);
+
+  const selectFrame = useCallback((index: number) => {
+    const count = EVENT_CONFIG.frames.length;
+    const nextIndex = (index + count) % count;
+    const nextFrame = EVENT_CONFIG.frames[nextIndex];
+    const image = frameImagesRef.current.get(nextFrame.id);
+    if (!image) return;
+    frameRef.current = image;
+    setActiveFrameIndex(nextIndex);
+  }, []);
+
+  const handleSwipeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    swipeStartXRef.current = event.clientX;
+  };
+
+  const handleSwipeEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (swipeStartXRef.current === null || stage !== "camera") return;
+    const distance = event.clientX - swipeStartXRef.current;
+    swipeStartXRef.current = null;
+    if (Math.abs(distance) < 42) return;
+    selectFrame(activeFrameIndex + (distance < 0 ? 1 : -1));
+  };
 
   useEffect(() => {
     if (stage !== "camera" || !streamRef.current || !videoRef.current) return;
@@ -207,20 +248,20 @@ export default function EventPhotoBooth() {
       </section>}
 
       {(stage === "requesting" || stage === "camera" || stage === "processing") && <section className="camera-screen screen-enter" aria-label="Camera">
-        <header className="camera-header"><WittyLogo /><div><span className="camera-overline">{EVENT_CONFIG.eventName.toUpperCase()}</span><strong>{EVENT_CONFIG.headline}</strong></div><span className="header-spark" aria-hidden="true">✳</span></header>
-        <div className="camera-main"><div className="viewfinder" style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${EVENT_CONFIG.outputHeight}` }}>
+        <header className="camera-header"><WittyLogo /></header>
+        <div className="camera-main"><div className="viewfinder" onPointerDown={handleSwipeStart} onPointerUp={handleSwipeEnd} onPointerCancel={() => { swipeStartXRef.current = null; }} style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${EVENT_CONFIG.outputHeight}` }}>
           <video ref={videoRef} autoPlay playsInline muted className={`camera-video ${facing === "user" && EVENT_CONFIG.mirrorFrontCamera ? "camera-video--mirror" : ""}`} aria-label="Live camera preview" />
           {/* The exact PNG pixels must align with the canvas export. */}
-          <img className="frame-overlay" src={activeFrame.src} alt="" draggable={false} />
+          <img key={activeFrame.id} className="frame-overlay frame-overlay--enter" src={activeFrame.src} alt="" draggable={false} />
           {stage === "requesting" && <div className="view-status"><span className="spinner" />Opening camera…</div>}
           {stage === "processing" && <div className="view-status"><span className="spinner" />Preparing your photo…</div>}
           {stage === "camera" && needsPlaybackTap && <div className="view-status"><button className="button button--primary playback-button" onClick={() => void resumePlayback()}>Tap to start camera</button></div>}
-        </div></div>
+        </div><div className="frame-picker" role="group" aria-label="Choose a photo frame">{EVENT_CONFIG.frames.map((frame, index) => <button key={frame.id} type="button" className={`frame-choice ${index === activeFrameIndex ? "frame-choice--active" : ""}`} aria-label={`Use frame ${index + 1}`} aria-pressed={index === activeFrameIndex} onClick={() => selectFrame(index)} disabled={!frameReady || stage !== "camera"}><img src={frame.src} alt="" draggable={false} /></button>)}</div></div>
         <div className="camera-controls"><button className="icon-button" aria-label="Upload photo" onClick={() => inputRef.current?.click()} disabled={stage === "processing"}><Icon name="upload" /><span>Upload</span></button><button className="shutter" aria-label="Take photo" onClick={() => void capture()} disabled={stage !== "camera" || needsPlaybackTap}><span /></button><button className="icon-button" aria-label="Switch camera" onClick={() => void openCamera(facing === "user" ? "environment" : "user")} disabled={stage !== "camera"}><Icon name="flip" /><span>Flip</span></button></div>
         <p className="camera-hint">Place yourself inside the frame</p>
       </section>}
 
-      {stage === "preview" && photo && <section className="preview-screen screen-enter" aria-label="Photo preview"><header className="preview-header"><WittyLogo /><div><span className="camera-overline">YOUR MOMENT IS READY</span><strong>Looking good!</strong></div><span className="header-spark" aria-hidden="true">✳</span></header><div className="preview-main"><img className="result-photo" src={photo.url} alt={`Your photo with the ${EVENT_CONFIG.eventName} event frame`} style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${EVENT_CONFIG.outputHeight}` }} /></div><div className="preview-actions"><p className="preview-caption">Share your moment <span>❤️</span></p><button className="button button--primary" aria-label="Share photo" onClick={() => void share()}>Share Photo <Icon name="arrow" /></button><button className="button button--secondary" aria-label="Save photo" onClick={() => void save()}><Icon name="download" /> Save Photo</button>{saveHint && <p className="save-note" role="status">{saveHint}</p>}{shareFallback && <p className="fallback-note" role="status">Save the photo, then share it on Instagram, WhatsApp or Facebook.</p>}<button className="text-action retake" aria-label="Retake photo" onClick={retake}>Retake</button></div></section>}
+      {stage === "preview" && photo && <section className="preview-screen screen-enter" aria-label="Photo preview"><header className="preview-header"><WittyLogo /></header><div className="preview-main"><img className="result-photo" src={photo.url} alt={`Your photo with the ${EVENT_CONFIG.eventName} event frame`} style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${EVENT_CONFIG.outputHeight}` }} /></div><div className="preview-actions"><p className="preview-caption">Share your moment <span>❤️</span></p><button className="button button--primary" aria-label="Share photo" onClick={() => void share()}>Share Photo <Icon name="arrow" /></button><button className="button button--secondary" aria-label="Save photo" onClick={() => void save()}><Icon name="download" /> Save Photo</button>{saveHint && <p className="save-note" role="status">{saveHint}</p>}{shareFallback && <p className="fallback-note" role="status">Save the photo, then share it on Instagram, WhatsApp or Facebook.</p>}<button className="text-action retake" aria-label="Retake photo" onClick={retake}>Retake</button></div></section>}
 
       {stage === "error" && <section className="error-screen screen-enter" aria-labelledby="error-title"><WittyLogo /><div className="error-icon" aria-hidden="true">✳</div><p className="kicker">LET’S TRY ANOTHER WAY</p><h1 id="error-title">Your moment<br/><em>is still waiting.</em></h1><p className="error-message" role="alert">{error}</p><div className="error-actions"><button className="button button--primary" onClick={() => void openCamera()}>Try Again <Icon name="arrow" /></button><button className="button button--secondary" onClick={() => inputRef.current?.click()} disabled={!frameReady}><Icon name="upload" /> Upload Photo Instead</button></div><p className="privacy">Photos are processed on your device.</p></section>}
       {flash && <div className="flash" aria-hidden="true" />}
