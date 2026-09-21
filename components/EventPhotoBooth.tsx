@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import Link from "next/link";
 import { EVENT_CONFIG } from "@/config/event";
 import { attachCameraStream, CameraFacingMode, getCameraErrorMessage, startCamera, stopCamera } from "@/lib/camera";
 import { composeEventPhoto, composeUploadedPhoto } from "@/lib/imageComposer";
@@ -401,7 +402,7 @@ export default function EventPhotoBooth() {
     void openCamera(facing, false);
   };
 
-  const galleryGrid = (insideCamera: boolean) => <>
+  const galleryGrid = () => <>
     <div className="gallery-title-row">
       <div><span className="gallery-kicker">ON THIS DEVICE</span><h2>Your moments</h2></div>
       <span className="gallery-count">{galleryPhotos.length}/{MAX_STORED_PHOTOS}</span>
@@ -411,7 +412,6 @@ export default function EventPhotoBooth() {
       <button className="gallery-delete" onClick={() => void removeGalleryPhoto(item.id)} aria-label="Delete saved photo"><Icon name="trash" /></button>
     </article>)}</div> : <div className="gallery-empty"><Icon name="gallery" /><strong>No photos yet</strong><span>Your captured photos will appear here.</span></div>}
     {galleryNotice && <p className="gallery-notice" role="status">{galleryNotice}</p>}
-    {insideCamera && <button className="drawer-cue" onClick={() => setGalleryOpen(false)}><span /> Swipe down for camera</button>}
   </>;
 
   return <main className="shell"><div className={`booth booth--${stage}`}>
@@ -427,11 +427,21 @@ export default function EventPhotoBooth() {
       <div className="campaign-hero">
         <div className="campaign-heart" aria-hidden="true">♥</div>
         <p className="kicker">JOY OF GIVING WEEK</p>
-        <h1 id="intro-title">Give. Capture.<br/><em>Share the Joy.</em></h1>
-        <p className="campaign-copy">Your act of giving can inspire someone else. Donate, capture your moment, and share it on Instagram, Facebook or WhatsApp.</p>
-        <div className="tag-reminder"><span aria-hidden="true">@</span><p>Don’t forget to tag us on Instagram<strong>{EVENT_CONFIG.instagramHandles.map((account, index) => <span key={account.handle}>{index > 0 && " · "}<a href={account.url} target="_blank" rel="noreferrer">{account.handle}</a></span>)}</strong></p></div>
+        <h1 id="intro-title"><span>Give.</span><span>Capture.</span><em>Share the Joy.</em></h1>
+        <div className="campaign-invite">
+          <p>One act of giving can inspire another.</p>
+          <ol className="campaign-flow" aria-label="How to join">
+            <li><small>01</small><strong>Give</strong></li>
+            <li><small>02</small><strong>Capture</strong></li>
+            <li><small>03</small><strong>Share</strong></li>
+          </ol>
+        </div>
+        <div className="tag-reminder">
+          <div className="tag-reminder-heading"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle className="instagram-dot" cx="17.4" cy="6.7" r="1"/></svg></span><div><small>INSTAGRAM</small><p>Tag your Joy of Giving moment</p></div></div>
+          <nav className="tag-handles" aria-label="Instagram accounts to tag">{EVENT_CONFIG.instagramHandles.map((account) => <a key={account.handle} href={account.url} target="_blank" rel="noreferrer">{account.handle}</a>)}</nav>
+        </div>
       </div>
-      <div className="intro-actions"><button className="button button--primary" onClick={() => void openCamera(facing, true)} disabled={!frameReady}>Capture &amp; Share Your Moment <Icon name="arrow"/></button>{galleryPhotos.length > 0 && <button className="button button--ghost" onClick={() => setStage("gallery")}><Icon name="gallery"/> View Photos ({galleryPhotos.length})</button>}<p className="privacy">Photos stay on this device until you choose to share them.</p></div>
+      <div className="intro-actions"><button className="button button--primary" onClick={() => void openCamera(facing, true)} disabled={!frameReady}>Capture &amp; Share Your Moment <Icon name="arrow"/></button>{galleryPhotos.length > 0 && <button className="button button--ghost" onClick={() => setStage("gallery")}><Icon name="gallery"/> View Photos ({galleryPhotos.length})</button>}<p className="privacy">Photos stay on this device until you choose to share them.<span className="privacy-separator" aria-hidden="true">&middot;</span><Link className="terms-link" href="/terms">Terms &amp; Conditions</Link></p></div>
     </section>}
 
     {(stage === "requesting" || stage === "camera" || stage === "processing") && <section className="camera-screen screen-enter" aria-label="Camera">
@@ -449,15 +459,17 @@ export default function EventPhotoBooth() {
           return <button key={frame.id} className={`lens-button ${selected ? "lens-button--active" : ""}`} onClick={() => handleLensClick(index)} disabled={stage !== "camera" || needsPlaybackTap} aria-label={selected ? `Take photo with frame ${index + 1}` : `Select frame ${index + 1}`}><img src={frame.src} alt=""/><span className="lens-shutter" aria-hidden="true"/></button>;
         })}</div>
         <div className="camera-utility-row"><button className="utility-button" onClick={() => setGalleryOpen(true)} aria-label={`Open photo gallery, ${galleryPhotos.length} photos`}><span className="gallery-button-visual">{galleryPhotos[0] ? <img src={galleryPhotos[0].url} alt=""/> : <Icon name="gallery"/>}{galleryPhotos.length > 0 && <b>{galleryPhotos.length}</b>}</span><small>Gallery</small></button><button className="utility-button" onClick={() => inputRef.current?.click()} disabled={stage !== "camera" || !frameReady} aria-label="Upload from gallery"><Icon name="upload"/><small>Upload</small></button><button className="utility-button" onClick={() => void openCamera(facing === "user" ? "environment" : "user", false)} disabled={stage !== "camera"} aria-label="Switch camera"><Icon name="flip"/><small>Flip</small></button></div>
-        {galleryOpen && <div className={`gallery-drawer ${drawerClosing ? "gallery-drawer--closing" : ""}`} style={drawerDragY ? { transform: `translate3d(0, ${drawerDragY}px, 0)` } : undefined} onPointerDown={handleDrawerStart} onPointerMove={handleDrawerMove} onPointerUp={handleDrawerEnd} onPointerCancel={() => { drawerStartYRef.current = null; setDrawerDragY(0); }}>{galleryGrid(true)}</div>}
+        {galleryOpen && <div className={`gallery-drawer ${drawerClosing ? "gallery-drawer--closing" : ""}`} style={drawerDragY ? { transform: `translate3d(0, ${drawerDragY}px, 0)` } : undefined} onPointerDown={handleDrawerStart} onPointerMove={handleDrawerMove} onPointerUp={handleDrawerEnd} onPointerCancel={() => { drawerStartYRef.current = null; setDrawerDragY(0); }}>{galleryGrid()}</div>}
       </div>
     </section>}
 
-    {stage === "developing" && photo && <section className="developing-screen" aria-label="Developing photo"><div className="developing-gallery-backdrop">{galleryGrid(false)}</div><div className="developing-machine"><div className="developing-slot"/><div className="developing-output"><div className="developing-print"><img src={photo.url} alt="Your newly captured event photo"/></div></div><div className="developing-slot-lip"/></div><p>Developing your moment…</p></section>}
+    {galleryOpen && (stage === "requesting" || stage === "camera" || stage === "processing") && <button className="drawer-cue" onClick={() => setGalleryOpen(false)} aria-label="Swipe down or tap to open the camera"><span className="drawer-cue-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m7 5 5 5 5-5"/><path d="m7 11 5 5 5-5"/></svg></span><span className="drawer-cue-copy"><strong>Swipe down for camera</strong><small>or tap here</small></span></button>}
+
+    {stage === "developing" && photo && <section className="developing-screen" aria-label="Developing photo"><div className="developing-gallery-backdrop">{galleryGrid()}</div><div className="developing-machine"><div className="developing-slot"/><div className="developing-output"><div className="developing-print"><img src={photo.url} alt="Your newly captured event photo"/></div></div><div className="developing-slot-lip"/></div><p>Developing your moment…</p></section>}
 
     {stage === "preview" && photo && <section className="preview-screen screen-enter" aria-label="Photo preview"><header className="preview-header"><button className="preview-round-button preview-back" onClick={() => setStage("gallery")} aria-label="Back to gallery"><Icon name="back"/></button><WittyLogo/>{photo.storedId && <button className="preview-round-button preview-delete" onClick={() => void deleteCurrentPhoto()} aria-label="Delete this photo"><Icon name="trash"/></button>}</header><div className="preview-main"><img className="result-photo" src={photo.url} alt={`Your photo with the ${EVENT_CONFIG.eventName} event frame`} style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${EVENT_CONFIG.outputHeight}` }}/></div><div className="preview-actions"><p className="preview-caption">Your moment is ready <span>❤️</span></p><button className="button button--primary" onClick={() => void share()} aria-label="Share photo">Share Photo <Icon name="arrow"/></button><button className="button button--secondary" onClick={() => void save()} aria-label="Save photo"><Icon name="download"/> Save Photo</button><button className="button button--ghost" onClick={() => setStage("gallery")}><Icon name="gallery"/> View Photos ({galleryPhotos.length})</button>{saveHint && <p className="save-note" role="status">{saveHint}</p>}{shareFallback && <p className="fallback-note" role="status">Save the photo, then share it on Instagram, WhatsApp or Facebook.</p>}{galleryNotice && <p className="gallery-notice" role="status">{galleryNotice}</p>}<button className="text-action retake" onClick={retake} aria-label="Retake photo">Take another photo</button></div></section>}
 
-    {stage === "gallery" && <section className="gallery-screen screen-enter" aria-label="Saved photo gallery"><header className="gallery-page-header"><WittyLogo/><button className="round-camera-button" onClick={() => void openCamera(facing, false)} aria-label="Open camera"><Icon name="camera"/></button></header><div className="gallery-page-body">{galleryGrid(false)}</div><button className="button button--primary gallery-camera-cta" onClick={() => void openCamera(facing, false)}><Icon name="camera"/> Open Camera</button></section>}
+    {stage === "gallery" && <section className="gallery-screen screen-enter" aria-label="Saved photo gallery"><header className="gallery-page-header"><WittyLogo/><button className="round-camera-button" onClick={() => void openCamera(facing, false)} aria-label="Open camera"><Icon name="camera"/></button></header><div className="gallery-page-body">{galleryGrid()}</div><button className="button button--primary gallery-camera-cta" onClick={() => void openCamera(facing, false)}><Icon name="camera"/> Open Camera</button></section>}
 
     {stage === "error" && <section className="error-screen screen-enter" aria-labelledby="error-title"><WittyLogo/><div className="error-icon" aria-hidden="true">✳</div><p className="kicker">LET’S TRY ANOTHER WAY</p><h1 id="error-title">Your moment<br/><em>is still waiting.</em></h1><p className="error-message" role="alert">{error}</p><div className="error-actions"><button className="button button--primary" onClick={() => void openCamera()}>Try Again <Icon name="arrow"/></button>{galleryPhotos.length > 0 && <button className="button button--ghost" onClick={() => setStage("gallery")}><Icon name="gallery"/> View Saved Photos</button>}<button className="button button--secondary" onClick={() => inputRef.current?.click()} disabled={!frameReady}><Icon name="upload"/> Upload Photo Instead</button></div><p className="privacy">Photos are processed and saved on this device.</p></section>}
     {flash && <div className="flash" aria-hidden="true"/>}

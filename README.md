@@ -8,7 +8,7 @@ A client-side, mobile-first event photo booth. Photos are composed in the browse
 npm install
 npm run dev
 ```
-https://www.instagram.com/thegoodboxproject
+
 Open `http://localhost:3000`. Camera access requires HTTPS on deployed domains (localhost is permitted for local development). The upload path works without camera permission.
 
 ## Customize for an event
