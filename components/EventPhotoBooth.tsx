@@ -14,6 +14,7 @@ import Link from "next/link";
 import { EVENT_CONFIG } from "@/config/event";
 import { attachCameraStream, CameraFacingMode, getCameraErrorMessage, startCamera, stopCamera } from "@/lib/camera";
 import { composeEventPhoto, composeUploadedPhoto } from "@/lib/imageComposer";
+import { prepareFrameImage } from "@/lib/frameComposer";
 import { deleteStoredPhoto, listStoredPhotos, MAX_STORED_PHOTOS, StoredPhoto, storePhoto } from "@/lib/photoStore";
 import { canSharePhoto, downloadPhoto, isIOSDevice, makePhotoFilename, sharePhoto } from "@/lib/share";
 
@@ -42,6 +43,7 @@ export default function EventPhotoBooth() {
   const [facing, setFacing] = useState<CameraFacingMode>(EVENT_CONFIG.cameraFacingMode);
   const [activeFrameIndex, setActiveFrameIndex] = useState(0);
   const [frameReady, setFrameReady] = useState(false);
+  const [frameSources, setFrameSources] = useState<Record<string, string>>({});
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([]);
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -113,13 +115,16 @@ export default function EventPhotoBooth() {
         const loaded = await Promise.all(EVENT_CONFIG.frames.map((frame) => new Promise<[string, HTMLImageElement]>((resolve, reject) => {
           const image = new Image();
           image.decoding = "async";
-          image.onload = () => resolve([frame.id, image]);
+          image.onload = () => {
+            void prepareFrameImage(image, frame).then((prepared) => resolve([frame.id, prepared]), reject);
+          };
           image.onerror = () => reject(new Error(`Could not load ${frame.id}`));
           image.src = frame.src;
         })));
         if (cancelled) return;
         frameImagesRef.current = new Map(loaded);
         frameRef.current = frameImagesRef.current.get(EVENT_CONFIG.frames[0].id) ?? null;
+        setFrameSources(Object.fromEntries(loaded.map(([id, image]) => [id, image.src])));
         setFrameReady(true);
       } catch {
         if (!cancelled) {
@@ -402,6 +407,13 @@ export default function EventPhotoBooth() {
     void openCamera(facing, false);
   };
 
+  const frameMenu = () => <label className="frame-menu">
+    <span>Frame <small>{activeFrameIndex + 1}/{EVENT_CONFIG.frames.length}</small></span>
+    <select aria-label="Choose a frame" value={activeFrameIndex} onChange={(event) => selectFrame(Number(event.target.value))} disabled={!frameReady || stage === "processing"}>
+      {EVENT_CONFIG.frames.map((frame, index) => <option key={frame.id} value={index}>{frame.alt}</option>)}
+    </select>
+  </label>;
+
   const galleryGrid = () => <>
     <div className="gallery-title-row">
       <div><span className="gallery-kicker">ON THIS DEVICE</span><h2>Your moments</h2></div>
@@ -446,17 +458,18 @@ export default function EventPhotoBooth() {
 
     {(stage === "requesting" || stage === "camera" || stage === "processing") && <section className="camera-screen screen-enter" aria-label="Camera">
       <div className="camera-main">
-        <div className="viewfinder" onPointerDown={handleSwipeStart} onPointerUp={handleSwipeEnd} onPointerCancel={() => { swipeStartXRef.current = null; }} style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${Math.round(EVENT_CONFIG.outputHeight * 1.025)}` }}>
+        <div className="viewfinder" onPointerDown={handleSwipeStart} onPointerUp={handleSwipeEnd} onPointerCancel={() => { swipeStartXRef.current = null; }} style={{ aspectRatio: `${EVENT_CONFIG.outputWidth} / ${EVENT_CONFIG.outputHeight}` }}>
           <video ref={videoRef} autoPlay playsInline muted className={`camera-video ${facing === "user" && EVENT_CONFIG.mirrorFrontCamera ? "camera-video--mirror" : ""}`} aria-label="Live camera preview" />
-          <img key={activeFrame.id} className="frame-overlay frame-overlay--enter" src={activeFrame.src} alt="" draggable={false}/>
+          <img key={activeFrame.id} className="frame-overlay frame-overlay--enter" src={frameSources[activeFrame.id] ?? activeFrame.src} alt="" draggable={false}/>
           {stage === "requesting" && <div className="view-status"><span className="spinner"/>Opening camera…</div>}
           {stage === "processing" && <div className="view-status"><span className="spinner"/>Preparing your photo…</div>}
           {stage === "camera" && needsPlaybackTap && <div className="view-status"><button className="button button--primary playback-button" onClick={() => void resumePlayback()}>Tap to start camera</button></div>}
         </div>
+        {frameMenu()}
         <div className={`lens-rail ${EVENT_CONFIG.frames.length === 2 ? "lens-rail--two" : ""}`} role="group" aria-label="Choose a frame and take a photo">{lensIndexes.map((index) => {
           const frame = EVENT_CONFIG.frames[index];
           const selected = index === activeFrameIndex;
-          return <button key={frame.id} className={`lens-button ${selected ? "lens-button--active" : ""}`} onClick={() => handleLensClick(index)} disabled={stage !== "camera" || needsPlaybackTap} aria-label={selected ? `Take photo with frame ${index + 1}` : `Select frame ${index + 1}`}><img src={frame.src} alt=""/><span className="lens-shutter" aria-hidden="true"/></button>;
+          return <button key={frame.id} className={`lens-button ${selected ? "lens-button--active" : ""}`} onClick={() => handleLensClick(index)} disabled={stage !== "camera" || needsPlaybackTap} title={selected ? `Take photo: ${frame.alt}` : frame.alt} aria-label={selected ? `Take photo: ${frame.alt}` : `Select frame: ${frame.alt}`}><img src={frameSources[frame.id] ?? frame.src} alt=""/><span className="lens-shutter" aria-hidden="true"/></button>;
         })}</div>
         <div className="camera-utility-row"><button className="utility-button" onClick={() => setGalleryOpen(true)} aria-label={`Open photo gallery, ${galleryPhotos.length} photos`}><span className="gallery-button-visual">{galleryPhotos[0] ? <img src={galleryPhotos[0].url} alt=""/> : <Icon name="gallery"/>}{galleryPhotos.length > 0 && <b>{galleryPhotos.length}</b>}</span><small>Gallery</small></button><button className="utility-button" onClick={() => inputRef.current?.click()} disabled={stage !== "camera" || !frameReady} aria-label="Upload from gallery"><Icon name="upload"/><small>Upload</small></button><button className="utility-button" onClick={() => void openCamera(facing === "user" ? "environment" : "user", false)} disabled={stage !== "camera"} aria-label="Switch camera"><Icon name="flip"/><small>Flip</small></button></div>
         {galleryOpen && <div className={`gallery-drawer ${drawerClosing ? "gallery-drawer--closing" : ""}`} style={drawerDragY ? { transform: `translate3d(0, ${drawerDragY}px, 0)` } : undefined} onPointerDown={handleDrawerStart} onPointerMove={handleDrawerMove} onPointerUp={handleDrawerEnd} onPointerCancel={() => { drawerStartYRef.current = null; setDrawerDragY(0); }}>{galleryGrid()}</div>}
@@ -471,7 +484,7 @@ export default function EventPhotoBooth() {
 
     {stage === "gallery" && <section className="gallery-screen screen-enter" aria-label="Saved photo gallery"><header className="gallery-page-header"><WittyLogo/><button className="round-camera-button" onClick={() => void openCamera(facing, false)} aria-label="Open camera"><Icon name="camera"/></button></header><div className="gallery-page-body">{galleryGrid()}</div><button className="button button--primary gallery-camera-cta" onClick={() => void openCamera(facing, false)}><Icon name="camera"/> Open Camera</button></section>}
 
-    {stage === "error" && <section className="error-screen screen-enter" aria-labelledby="error-title"><WittyLogo/><div className="error-icon" aria-hidden="true">✳</div><p className="kicker">LET’S TRY ANOTHER WAY</p><h1 id="error-title">Your moment<br/><em>is still waiting.</em></h1><p className="error-message" role="alert">{error}</p><div className="error-actions"><button className="button button--primary" onClick={() => void openCamera()}>Try Again <Icon name="arrow"/></button>{galleryPhotos.length > 0 && <button className="button button--ghost" onClick={() => setStage("gallery")}><Icon name="gallery"/> View Saved Photos</button>}<button className="button button--secondary" onClick={() => inputRef.current?.click()} disabled={!frameReady}><Icon name="upload"/> Upload Photo Instead</button></div><p className="privacy">Photos are processed and saved on this device.</p></section>}
+    {stage === "error" && <section className="error-screen screen-enter" aria-labelledby="error-title"><WittyLogo/><div className="error-icon" aria-hidden="true">✳</div><p className="kicker">LET’S TRY ANOTHER WAY</p><h1 id="error-title">Your moment<br/><em>is still waiting.</em></h1><p className="error-message" role="alert">{error}</p><div className="error-actions">{frameMenu()}<button className="button button--primary" onClick={() => void openCamera()}>Try Again <Icon name="arrow"/></button>{galleryPhotos.length > 0 && <button className="button button--ghost" onClick={() => setStage("gallery")}><Icon name="gallery"/> View Saved Photos</button>}<button className="button button--secondary" onClick={() => inputRef.current?.click()} disabled={!frameReady}><Icon name="upload"/> Upload Photo Instead</button></div><p className="privacy">Photos are processed and saved on this device.</p></section>}
     {flash && <div className="flash" aria-hidden="true"/>}
   </div></main>;
 }

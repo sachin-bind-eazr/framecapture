@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./frame-controls.css";
 
 export const metadata: Metadata = {
   title: "Share the Joy | Joy of Giving",
@@ -14,5 +15,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><head><link rel="preload" href="/frames/new1.png" as="image" type="image/png" /></head><body suppressHydrationWarning>{children}</body></html>;
+  return <html lang="en"><head><link rel="preload" href="/frames/giving-books.png" as="image" type="image/png" /></head><body suppressHydrationWarning>{children}</body></html>;
 }
