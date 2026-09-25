@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { rm } from "node:fs/promises";
 
 const frames = [
   "public/frames/helping-someone.png",
@@ -32,6 +33,8 @@ for (const framePath of frames) {
     .png()
     .toBuffer();
 
-  await sharp(result).toFile(`${framePath}.updated`);
-  await sharp(`${framePath}.updated`).toFile(framePath);
+  const temporaryPath = `${framePath}.updated`;
+  await sharp(result).toFile(temporaryPath);
+  await sharp(temporaryPath).toFile(framePath);
+  await rm(temporaryPath);
 }
