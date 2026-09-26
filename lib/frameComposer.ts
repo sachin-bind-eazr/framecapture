@@ -15,7 +15,7 @@ export async function prepareFrameImage(
   // Bleed it past the canvas so the visible frame sits flush on every edge.
   const horizontalBleed = 24;
   const topBleed = 42;
-  const bottomBleed = 10;
+  const bottomBleed = 28;
   context.drawImage(
     artwork,
     -horizontalBleed,
