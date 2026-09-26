@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./frame-controls.css";
+import "./welcome.css";
 
 export const metadata: Metadata = {
   title: "Share the Joy | Joy of Giving",

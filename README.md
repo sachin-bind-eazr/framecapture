@@ -13,7 +13,7 @@ Open `http://localhost:3000`. Camera access requires HTTPS on deployed domains (
 
 ## Customize for an event
 
-Edit [`config/event.ts`](config/event.ts) for the event name, copy, image dimensions, default camera, and frame list. The active collection contains ten illustrated frame assets in [`public/frames`](public/frames), one for each giving pledge or celebration. [`lib/frameComposer.ts`](lib/frameComposer.ts) prepares transparent 1080 x 1350 overlays in the browser with a small Joy of Giving heading, the original Witty logo at bottom left, The Good Box Project logo at bottom right, and the frame's exact phrase between them.
+Edit [`config/event.ts`](config/event.ts) for the event name, copy, image dimensions, default camera, and frame list. The active collection contains ten illustrated frame assets in [`public/frames`](public/frames), one for each giving pledge or celebration. Each finalized PNG includes its Joy of Giving heading, Witty logo at bottom left, The Good Box Project logo at bottom right, and phrase between them. [`lib/frameComposer.ts`](lib/frameComposer.ts) resizes the complete transparent artwork to 1080 x 1350 without cropping its decorations or repainting its branding.
 
 Keep the PNG canvas at the same aspect ratio as `outputWidth`/`outputHeight`. The camera preview and exported image both fill that entire rectangle with a centered cover crop, then place the PNG over it. The frame's central opening should be transparent.
 
