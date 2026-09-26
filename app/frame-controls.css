@@ -28,12 +28,19 @@
 .frame-menu select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 .camera-main .viewfinder {
-  width: min(100%, calc((100dvh - 204px - env(safe-area-inset-bottom)) * .8));
+  width: 100%;
 }
 
 @media (min-width: 600px) {
   .camera-screen { min-height: 0; }
   .camera-main .viewfinder {
-    width: min(100%, calc((min(860px, 100dvh) - 206px - env(safe-area-inset-bottom)) * .8));
+    width: 100%;
   }
+}
+
+@media (max-width: 599px) {
+  .camera-main { gap: 5px; }
+  .frame-menu { min-height: 40px; }
+  .lens-rail { min-height: 64px; }
+  .camera-utility-row { min-height: 42px; }
 }
