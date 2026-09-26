@@ -11,6 +11,6 @@
 
 @media (max-width: 599px) {
   .camera-main { gap: 5px; }
-  .lens-rail { min-height: 64px; }
+  .lens-rail { min-height: 82px; }
   .camera-utility-row { min-height: 42px; }
 }
