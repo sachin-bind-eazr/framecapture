@@ -355,6 +355,16 @@ export default function EventPhotoBooth() {
     event.currentTarget.scrollLeft = lensSwipeStartScrollRef.current - distance;
   };
 
+  const snapLensToPosition = (position: number) => {
+    const rail = lensRailRef.current;
+    const button = lensButtonRefsRef.current.get(position);
+    if (!rail || !button) return;
+    rail.scrollTo({
+      left: button.offsetLeft + button.offsetWidth / 2 - rail.clientWidth / 2,
+      behavior: "smooth",
+    });
+  };
+
   const handleLensSwipeEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
     const startX = lensSwipeStartXRef.current;
     lensSwipeStartXRef.current = null;
@@ -364,7 +374,11 @@ export default function EventPhotoBooth() {
     }
 
     const distance = event.clientX - startX;
-    if (Math.abs(distance) < 5) return;
+    if (Math.abs(distance) < 5) {
+      snapLensToPosition(lensPosition);
+      window.setTimeout(() => { lensSuppressClickRef.current = false; }, 350);
+      return;
+    }
     const railCenter = event.currentTarget.scrollLeft + event.currentTarget.clientWidth / 2;
     let closestPosition = lensPosition;
     let closestDistance = Number.POSITIVE_INFINITY;
@@ -377,7 +391,14 @@ export default function EventPhotoBooth() {
       }
     });
     selectFrame(closestPosition, closestPosition);
+    snapLensToPosition(closestPosition);
     window.setTimeout(() => { lensSuppressClickRef.current = false; }, 350);
+  };
+
+  const handleLensSwipeCancel = () => {
+    lensSwipeStartXRef.current = null;
+    lensSuppressClickRef.current = false;
+    snapLensToPosition(lensPosition);
   };
 
   const handleSwipeStart = (event: ReactPointerEvent<HTMLDivElement>) => { swipeStartXRef.current = event.clientX; };
@@ -546,7 +567,7 @@ export default function EventPhotoBooth() {
           {stage === "processing" && <div className="view-status"><span className="spinner"/>Preparing your photo…</div>}
           {stage === "camera" && needsPlaybackTap && <div className="view-status"><button className="button button--primary playback-button" onClick={() => void resumePlayback()}>Tap to start camera</button></div>}
         </div>
-        <div className="lens-carousel"><div className="lens-selector-ring" aria-hidden="true"/><div ref={lensRailRef} className="lens-rail" role="group" aria-label="Swipe or tap to choose a frame" onPointerDown={handleLensSwipeStart} onPointerMove={handleLensSwipeMove} onPointerUp={handleLensSwipeEnd} onPointerCancel={() => { lensSwipeStartXRef.current = null; lensSuppressClickRef.current = false; }}><div className="lens-track">{Array.from({ length: EVENT_CONFIG.frames.length * 3 }, (_, position) => {
+        <div className="lens-carousel"><div className="lens-selector-ring" aria-hidden="true"/><div ref={lensRailRef} className="lens-rail" role="group" aria-label="Swipe or tap to choose a frame" onPointerDown={handleLensSwipeStart} onPointerMove={handleLensSwipeMove} onPointerUp={handleLensSwipeEnd} onPointerCancel={handleLensSwipeCancel}><div className="lens-track">{Array.from({ length: EVENT_CONFIG.frames.length * 3 }, (_, position) => {
           const index = position % EVENT_CONFIG.frames.length;
           const frame = EVENT_CONFIG.frames[index];
           const selected = position === lensPosition;
