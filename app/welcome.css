@@ -357,9 +357,6 @@
   color: #dce9df;
 }
 
-.permission-screen .frame-menu { color: var(--mint); }
-.permission-screen .frame-menu small { color: var(--gold); }
-.permission-screen .frame-menu select { border-color: #ffffff40; background: var(--deep); color: var(--cream); }
 .permission-screen .button--ghost { border-color: #ffffff2e; color: var(--cream); }
 
 @media (max-height: 730px) {
