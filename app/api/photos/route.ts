@@ -1,31 +1,11 @@
-import { timingSafeEqual } from "node:crypto";
-import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
+import type { UploadApiResponse } from "cloudinary";
 import { EVENT_CONFIG } from "@/config/event";
 import { MAX_CLOUD_PHOTO_BYTES } from "@/lib/cloudPhoto";
+import { CLOUD_PHOTO_FOLDER, cloudinary, configureCloudinary, hasPhotoAdminAccess } from "@/lib/cloudinaryServer";
 
 export const runtime = "nodejs";
 
 const allowedFrameIds = new Set(EVENT_CONFIG.frames.map((frame) => frame.id));
-const folder = "joy-of-giving-week";
-
-function configureCloudinary() {
-  const cloudName = process.env.CLOUD_NAME;
-  const apiKey = process.env.API_KEY;
-  const apiSecret = process.env.API_SECRET;
-  if (!cloudName || !apiKey || !apiSecret) return false;
-  cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
-  return true;
-}
-
-function hasAdminAccess(request: Request) {
-  const expected = process.env.PHOTO_ADMIN_TOKEN;
-  const authorization = request.headers.get("authorization");
-  if (!expected || !authorization?.startsWith("Bearer ")) return false;
-  const supplied = authorization.slice(7);
-  const expectedBytes = Buffer.from(expected);
-  const suppliedBytes = Buffer.from(supplied);
-  return expectedBytes.length === suppliedBytes.length && timingSafeEqual(expectedBytes, suppliedBytes);
-}
 
 async function uploadToCloudinary(file: File, frameId: string): Promise<UploadApiResponse> {
   const bytes = Buffer.from(await file.arrayBuffer());
@@ -33,7 +13,7 @@ async function uploadToCloudinary(file: File, frameId: string): Promise<UploadAp
     try {
       const stream = cloudinary.uploader.upload_stream(
         {
-          folder,
+          folder: CLOUD_PHOTO_FOLDER,
           public_id: `photo-${Date.now()}-${crypto.randomUUID()}`,
           resource_type: "image",
           type: "authenticated",
@@ -94,7 +74,7 @@ export async function GET(request: Request) {
   if (!process.env.PHOTO_ADMIN_TOKEN) {
     return Response.json({ error: "Photo administration is not configured." }, { status: 503 });
   }
-  if (!hasAdminAccess(request)) {
+  if (!hasPhotoAdminAccess(request)) {
     return Response.json({ error: "Unauthorized." }, { status: 401 });
   }
   if (!configureCloudinary()) {
@@ -110,7 +90,7 @@ export async function GET(request: Request) {
     const result = await cloudinary.api.resources({
       resource_type: "image",
       type: "authenticated",
-      prefix: `${folder}/`,
+      prefix: `${CLOUD_PHOTO_FOLDER}/`,
       max_results: maxResults,
       next_cursor: nextCursor,
       direction: "desc",
@@ -138,6 +118,8 @@ export async function GET(request: Request) {
         format: resource.format,
       }),
       bytes: resource.bytes,
+      version: resource.version,
+      format: resource.format,
       width: resource.width,
       height: resource.height,
       createdAt: resource.created_at,
