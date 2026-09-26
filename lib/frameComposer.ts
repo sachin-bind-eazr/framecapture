@@ -10,7 +10,19 @@ export async function prepareFrameImage(
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Could not prepare the event frame.");
   context.imageSmoothingQuality = "high";
-  context.drawImage(artwork, 0, 0, canvas.width, canvas.height);
+
+  // Generated artwork has a small transparent trim around its perimeter.
+  // Bleed it past the canvas so the visible frame sits flush on every edge.
+  const horizontalBleed = 24;
+  const topBleed = 42;
+  const bottomBleed = 10;
+  context.drawImage(
+    artwork,
+    -horizontalBleed,
+    -topBleed,
+    canvas.width + horizontalBleed * 2,
+    canvas.height + topBleed + bottomBleed,
+  );
 
   return new Promise((resolve, reject) => {
     const image = new Image();
