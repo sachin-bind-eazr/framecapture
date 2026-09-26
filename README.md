@@ -1,6 +1,17 @@
 # Joy of Giving photo booth
 
-A client-side, mobile-first event photo booth. Photos are composed in the browser and up to 10 photos are saved locally on the device. Photos are not uploaded to a server.
+A mobile-first event photo booth. Photos are composed and compressed in the browser, saved locally on the device, and backed up as authenticated Cloudinary assets through the app's server-side API.
+
+Cloud uploads require `CLOUD_NAME`, `API_KEY`, and `API_SECRET` in the deployment environment. Final JPEG uploads are limited to 500 KB; the browser targets 480 KB to leave request headroom.
+
+The protected `GET /api/photos` route lists stored photos in newest-first pages. Set a strong `PHOTO_ADMIN_TOKEN` in the deployment environment and send it as `Authorization: Bearer <token>`. Use `maxResults` (1-100) and the returned `nextCursor` for pagination.
+
+```bash
+curl -H "Authorization: Bearer $PHOTO_ADMIN_TOKEN" \
+  "https://your-domain.example/api/photos?maxResults=50"
+```
+
+The upload and listing routes deploy with the Next.js app; no separate Render service is needed. Copy the names from `.env.example` into the hosting provider's environment settings and never commit the real values.
 
 ## Run locally
 

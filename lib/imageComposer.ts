@@ -6,6 +6,7 @@ export interface ComposeEventPhotoOptions {
   mirror?: boolean;
   type?: "image/jpeg" | "image/png";
   quality?: number;
+  maxBytes?: number;
 }
 
 export interface ComposedPhoto {
@@ -50,6 +51,58 @@ function exportBlob(
   });
 }
 
+async function exportBlobWithinLimit(
+  canvas: HTMLCanvasElement,
+  type: "image/jpeg" | "image/png",
+  quality: number,
+  maxBytes?: number,
+): Promise<{ blob: Blob; width: number; height: number }> {
+  const initial = await exportBlob(canvas, type, quality);
+  if (!maxBytes || initial.size <= maxBytes) {
+    return { blob: initial, width: canvas.width, height: canvas.height };
+  }
+  if (type !== "image/jpeg") {
+    throw new Error("Only JPEG photos can be compressed to a size limit.");
+  }
+
+  let workingCanvas = canvas;
+  const minimumQuality = 0.34;
+
+  while (true) {
+    const smallest = await exportBlob(workingCanvas, type, minimumQuality);
+    if (smallest.size <= maxBytes) {
+      let best = smallest;
+      let low = minimumQuality;
+      let high = Math.min(quality, 0.94);
+
+      // Keep the highest JPEG quality that remains below the upload limit.
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const candidateQuality = (low + high) / 2;
+        const candidate = await exportBlob(workingCanvas, type, candidateQuality);
+        if (candidate.size <= maxBytes) {
+          best = candidate;
+          low = candidateQuality;
+        } else {
+          high = candidateQuality;
+        }
+      }
+      return { blob: best, width: workingCanvas.width, height: workingCanvas.height };
+    }
+
+    if (workingCanvas.width <= 480) break;
+
+    const resized = document.createElement("canvas");
+    resized.width = Math.max(480, Math.round(workingCanvas.width * 0.85));
+    resized.height = Math.max(600, Math.round(workingCanvas.height * 0.85));
+    const context = resized.getContext("2d", { alpha: false });
+    if (!context) throw new Error("Could not compress the photo.");
+    context.drawImage(workingCanvas, 0, 0, resized.width, resized.height);
+    workingCanvas = resized;
+  }
+
+  throw new Error("Could not compress the photo below the upload limit.");
+}
+
 /** Draws a centered object-fit: cover crop, then the full-size transparent frame. */
 export async function composeEventPhoto({
   source,
@@ -59,6 +112,7 @@ export async function composeEventPhoto({
   mirror = false,
   type = "image/jpeg",
   quality = 0.94,
+  maxBytes,
 }: ComposeEventPhotoOptions): Promise<ComposedPhoto> {
   if (
     !Number.isInteger(width) ||
@@ -107,12 +161,12 @@ export async function composeEventPhoto({
   // Keep frame lettering and logos unmirrored, including for front camera shots.
   context.drawImage(frameImage, 0, 0, width, height);
 
-  const blob = await exportBlob(canvas, type, quality);
+  const compressed = await exportBlobWithinLimit(canvas, type, quality, maxBytes);
   return {
-    blob,
-    previewUrl: URL.createObjectURL(blob),
-    width,
-    height,
+    blob: compressed.blob,
+    previewUrl: URL.createObjectURL(compressed.blob),
+    width: compressed.width,
+    height: compressed.height,
   };
 }
 

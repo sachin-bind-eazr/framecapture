@@ -73,7 +73,7 @@ export default function TermsPage() {
           <section>
             <h2>7. Privacy and security</h2>
             <p>Only information reasonably required for operating the Photo Booth and managing the submitted content will be collected.</p>
-            <p>Photographs and related information will be handled with reasonable security measures and used for the purposes described in these Terms.</p>
+            <p>Submitted photographs are compressed and stored using a trusted cloud storage provider. Access is restricted to authorised campaign administrators, and photographs will be handled with reasonable security measures and used for the purposes described in these Terms.</p>
             <p>Witty and TGB will not knowingly use submitted photographs for unrelated advertising, targeted advertising or unrelated commercial purposes.</p>
           </section>
 

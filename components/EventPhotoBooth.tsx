@@ -16,6 +16,7 @@ import { EVENT_CONFIG } from "@/config/event";
 import { attachCameraStream, CameraFacingMode, getCameraErrorMessage, startCamera, stopCamera } from "@/lib/camera";
 import { composeEventPhoto, composeUploadedPhoto } from "@/lib/imageComposer";
 import { prepareFrameImage } from "@/lib/frameComposer";
+import { TARGET_CLOUD_PHOTO_BYTES, uploadPhotoToCloud } from "@/lib/cloudPhoto";
 import { deleteStoredPhoto, listStoredPhotos, MAX_STORED_PHOTOS, StoredPhoto, storePhoto } from "@/lib/photoStore";
 import { canSharePhoto, downloadPhoto, isIOSDevice, makePhotoFilename, sharePhoto } from "@/lib/share";
 
@@ -203,18 +204,26 @@ export default function EventPhotoBooth() {
   }, [clearPhoto, facing]);
 
   const persistPhoto = useCallback(async (blob: Blob, frameId: string, previewUrl: string) => {
-    try {
-      const stored = await storePhoto(blob, frameId);
-      if (!stored) {
-        setGalleryNotice(`Your gallery is full. Delete a photo to save another one (${MAX_STORED_PHOTOS}/${MAX_STORED_PHOTOS}).`);
-        return;
-      }
+    const [localResult, cloudResult] = await Promise.allSettled([
+      storePhoto(blob, frameId),
+      uploadPhotoToCloud(blob, frameId),
+    ]);
+    const notices: string[] = [];
+
+    if (localResult.status === "fulfilled" && localResult.value) {
+      const stored = localResult.value;
       setPhoto((current) => current?.url === previewUrl ? { ...current, storedId: stored.id } : current);
       photoRef.current = photoRef.current?.url === previewUrl ? { ...photoRef.current, storedId: stored.id } : photoRef.current;
-      setGalleryNotice("");
-    } catch {
-      setGalleryNotice("This photo could not be kept in the local gallery. You can still save or share it.");
+    } else if (localResult.status === "fulfilled") {
+      notices.push(`Your gallery is full. Delete a photo to save another one (${MAX_STORED_PHOTOS}/${MAX_STORED_PHOTOS}).`);
+    } else {
+      notices.push("This photo could not be kept in the local gallery. You can still save or share it.");
     }
+
+    if (cloudResult.status === "rejected") {
+      notices.push("Cloud storage could not be reached. Please keep this page open and try another photo.");
+    }
+    setGalleryNotice(notices.join(" "));
   }, []);
 
   const showDevelopingPhoto = useCallback((blob: Blob, previewUrl: string, frameId: string) => {
@@ -252,6 +261,7 @@ export default function EventPhotoBooth() {
         mirror: facing === "user" && EVENT_CONFIG.mirrorFrontCamera,
         type: "image/jpeg",
         quality: 0.92,
+        maxBytes: TARGET_CLOUD_PHOTO_BYTES,
       });
       showDevelopingPhoto(result.blob, result.previewUrl, activeFrame.id);
     } catch {
@@ -285,6 +295,7 @@ export default function EventPhotoBooth() {
         height: EVENT_CONFIG.outputHeight,
         type: "image/jpeg",
         quality: 0.92,
+        maxBytes: TARGET_CLOUD_PHOTO_BYTES,
       });
       clearPhoto();
       showDevelopingPhoto(result.blob, result.previewUrl, activeFrame.id);
@@ -453,7 +464,7 @@ export default function EventPhotoBooth() {
         <button className="button button--secondary" onClick={() => inputRef.current?.click()} disabled={!frameReady}><Icon name="upload"/> Choose from Gallery</button>
         {galleryPhotos.length > 0 && <button className="text-action welcome-gallery-link" onClick={() => setStage("gallery")}><Icon name="gallery"/> View saved photos ({galleryPhotos.length})</button>}
       </div>
-      <p className="privacy welcome-privacy">Your photo stays private and is used to create your campaign image.<span className="privacy-separator" aria-hidden="true">&middot;</span><Link className="terms-link" href="/terms">Terms &amp; Conditions</Link></p>
+      <p className="privacy welcome-privacy">Your photo is securely stored for the Joy of Giving campaign.<span className="privacy-separator" aria-hidden="true">&middot;</span><Link className="terms-link" href="/terms">Terms &amp; Conditions</Link></p>
     </section>}
 
     {(stage === "requesting" || stage === "camera" || stage === "processing") && <section className="camera-screen screen-enter" aria-label="Camera">
