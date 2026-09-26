@@ -75,6 +75,8 @@ export default function EventPhotoBooth() {
   const galleryUrlsRef = useRef<string[]>([]);
   const requestIdRef = useRef(0);
   const swipeStartXRef = useRef<number | null>(null);
+  const lensSwipeStartXRef = useRef<number | null>(null);
+  const lensSuppressClickRef = useRef(false);
   const drawerStartYRef = useRef<number | null>(null);
   const drawerStartTimeRef = useRef(0);
   const drawerWasDraggedRef = useRef(false);
@@ -86,11 +88,13 @@ export default function EventPhotoBooth() {
   const persistPromiseRef = useRef<Promise<void> | null>(null);
 
   const activeFrame = EVENT_CONFIG.frames[activeFrameIndex];
-  const lensIndexes = useMemo(() => {
+  const carouselIndexes = useMemo(() => {
     const count = EVENT_CONFIG.frames.length;
-    if (count === 1) return [0];
-    if (count === 2) return [(activeFrameIndex + 1) % 2, activeFrameIndex];
-    return [(activeFrameIndex - 1 + count) % count, activeFrameIndex, (activeFrameIndex + 1) % count];
+    const visibleCount = Math.min(count, 9);
+    const firstOffset = -Math.floor(visibleCount / 2);
+    return Array.from({ length: visibleCount }, (_, position) => (
+      activeFrameIndex + firstOffset + position + count
+    ) % count);
   }, [activeFrameIndex]);
 
   const clearPhoto = useCallback(() => {
@@ -306,8 +310,23 @@ export default function EventPhotoBooth() {
   };
 
   const handleLensClick = (index: number) => {
+    if (lensSuppressClickRef.current) return;
     if (index === activeFrameIndex) void capture();
     else selectFrame(index);
+  };
+
+  const handleLensSwipeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    lensSwipeStartXRef.current = event.clientX;
+  };
+
+  const handleLensSwipeEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (lensSwipeStartXRef.current === null || stage !== "camera") return;
+    const distance = event.clientX - lensSwipeStartXRef.current;
+    lensSwipeStartXRef.current = null;
+    if (Math.abs(distance) < 28) return;
+    lensSuppressClickRef.current = true;
+    window.setTimeout(() => { lensSuppressClickRef.current = false; }, 350);
+    selectFrame(activeFrameIndex + (distance < 0 ? 1 : -1));
   };
 
   const handleSwipeStart = (event: ReactPointerEvent<HTMLDivElement>) => { swipeStartXRef.current = event.clientX; };
@@ -476,11 +495,11 @@ export default function EventPhotoBooth() {
           {stage === "processing" && <div className="view-status"><span className="spinner"/>Preparing your photo…</div>}
           {stage === "camera" && needsPlaybackTap && <div className="view-status"><button className="button button--primary playback-button" onClick={() => void resumePlayback()}>Tap to start camera</button></div>}
         </div>
-        <div className={`lens-rail ${EVENT_CONFIG.frames.length === 2 ? "lens-rail--two" : ""}`} role="group" aria-label="Choose a frame and take a photo">{lensIndexes.map((index) => {
+        <div className="lens-rail" role="group" aria-label="Swipe or tap to choose a frame" onPointerDown={handleLensSwipeStart} onPointerUp={handleLensSwipeEnd} onPointerCancel={() => { lensSwipeStartXRef.current = null; }}><div className="lens-track">{carouselIndexes.map((index) => {
           const frame = EVENT_CONFIG.frames[index];
           const selected = index === activeFrameIndex;
-          return <button key={frame.id} className={`lens-button ${selected ? "lens-button--active" : ""}`} onClick={() => handleLensClick(index)} disabled={stage !== "camera" || needsPlaybackTap} title={selected ? `Take photo: ${frame.alt}` : frame.alt} aria-label={selected ? `Take photo: ${frame.alt}` : `Select frame: ${frame.alt}`}><img src={frameSources[frame.id] ?? frame.src} alt=""/><span className="lens-shutter" aria-hidden="true"/></button>;
-        })}</div>
+          return <button key={frame.id} className={`lens-button ${selected ? "lens-button--active" : ""}`} onClick={() => handleLensClick(index)} disabled={stage !== "camera" || needsPlaybackTap} title={selected ? `Take photo: ${frame.alt}` : frame.alt} aria-label={selected ? `Take photo: ${frame.alt}` : `Select frame: ${frame.alt}`} aria-current={selected ? "true" : undefined}><img src={frameSources[frame.id] ?? frame.src} alt="" draggable={false}/><span className="lens-shutter" aria-hidden="true"/></button>;
+        })}</div></div>
         <div className="camera-utility-row"><button className="utility-button" onClick={() => setGalleryOpen(true)} aria-label={`Open photo gallery, ${galleryPhotos.length} photos`}><span className="gallery-button-visual">{galleryPhotos[0] ? <img src={galleryPhotos[0].url} alt=""/> : <Icon name="gallery"/>}{galleryPhotos.length > 0 && <b>{galleryPhotos.length}</b>}</span><small>Gallery</small></button><button className="utility-button" onClick={() => inputRef.current?.click()} disabled={stage !== "camera" || !frameReady} aria-label="Upload from gallery"><Icon name="upload"/><small>Upload</small></button><button className="utility-button" onClick={() => void openCamera(facing === "user" ? "environment" : "user", false)} disabled={stage !== "camera"} aria-label="Switch camera"><Icon name="flip"/><small>Flip</small></button></div>
         {galleryOpen && <div className={`gallery-drawer ${drawerClosing ? "gallery-drawer--closing" : ""}`} style={drawerDragY ? { transform: `translate3d(0, ${drawerDragY}px, 0)` } : undefined} onPointerDown={handleDrawerStart} onPointerMove={handleDrawerMove} onPointerUp={handleDrawerEnd} onPointerCancel={() => { drawerStartYRef.current = null; setDrawerDragY(0); }}>{galleryGrid()}</div>}
       </div>
