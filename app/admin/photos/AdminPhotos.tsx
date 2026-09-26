@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Authenticated Cloudinary URLs are signed at request time. */
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import styles from "./AdminPhotos.module.css";
 
 interface CloudPhoto {
@@ -39,7 +39,8 @@ function formatDate(value: string) {
 
 export default function AdminPhotos() {
   const [password, setPassword] = useState("");
-  const [token, setToken] = useState("");
+  const [authenticated, setAuthenticated] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [photos, setPhotos] = useState<CloudPhoto[]>([]);
   const [pageSize, setPageSize] = useState(24);
   const [page, setPage] = useState(1);
@@ -50,7 +51,7 @@ export default function AdminPhotos() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const requestIdRef = useRef(0);
 
-  const loadPhotos = async (adminToken: string, cursor: string, targetPage: number, limit: number) => {
+  const loadPhotos = useCallback(async (cursor: string, targetPage: number, limit: number) => {
     const requestId = ++requestIdRef.current;
     setLoading(true);
     setError("");
@@ -59,16 +60,16 @@ export default function AdminPhotos() {
 
     try {
       const response = await fetch(`/api/photos?${query}`, {
-        headers: { Authorization: `Bearer ${adminToken}` },
         cache: "no-store",
+        credentials: "same-origin",
       });
       const result = await response.json().catch(() => null) as PhotoPage | null;
       if (requestId !== requestIdRef.current) return false;
       if (!response.ok || !result) {
         if (response.status === 401) {
-          setToken("");
+          setAuthenticated(false);
           setPhotos([]);
-          throw new Error("Incorrect admin token.");
+          throw new Error("Your admin session has expired. Sign in again.");
         }
         throw new Error(result?.error || "Photos could not be loaded.");
       }
@@ -84,7 +85,34 @@ export default function AdminPhotos() {
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const requestId = requestIdRef;
+    const restoreSession = async () => {
+      try {
+        const response = await fetch("/api/admin/session", { cache: "no-store", credentials: "same-origin" });
+        if (cancelled) return;
+        if (response.ok) {
+          setAuthenticated(true);
+          await loadPhotos("", 1, 24);
+        } else if (response.status !== 401) {
+          const result = await response.json().catch(() => null) as { error?: string } | null;
+          setError(result?.error || "Admin access could not be checked.");
+        }
+      } catch {
+        if (!cancelled) setError("Admin access could not be checked.");
+      } finally {
+        if (!cancelled) setCheckingSession(false);
+      }
+    };
+    void restoreSession();
+    return () => {
+      cancelled = true;
+      requestId.current++;
+    };
+  }, [loadPhotos]);
 
   const logIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -93,29 +121,43 @@ export default function AdminPhotos() {
       setError("Enter the admin token.");
       return;
     }
-    const success = await loadPhotos(submittedToken, "", 1, pageSize);
-    if (success) {
-      setToken(submittedToken);
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ token: submittedToken }),
+      });
+      const result = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(result?.error || "Admin login failed.");
+      setAuthenticated(true);
       setPassword("");
       setCursorHistory([""]);
+      await loadPhotos("", 1, pageSize);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Admin login failed.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const goNext = async () => {
     if (!nextCursor || loading) return;
     const cursor = nextCursor;
-    const success = await loadPhotos(token, cursor, page + 1, pageSize);
+    const success = await loadPhotos(cursor, page + 1, pageSize);
     if (success) setCursorHistory((current) => [...current.slice(0, page), cursor]);
   };
 
   const goPrevious = async () => {
     if (page <= 1 || loading) return;
-    await loadPhotos(token, cursorHistory[page - 2] || "", page - 1, pageSize);
+    await loadPhotos(cursorHistory[page - 2] || "", page - 1, pageSize);
   };
 
   const changePageSize = async (value: number) => {
     setPageSize(value);
-    const success = await loadPhotos(token, "", 1, value);
+    const success = await loadPhotos("", 1, value);
     if (success) setCursorHistory([""]);
   };
 
@@ -126,10 +168,8 @@ export default function AdminPhotos() {
     try {
       const response = await fetch("/api/photos/download", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ publicId: photo.publicId, version: photo.version, format: photo.format }),
       });
       if (!response.ok) {
@@ -155,7 +195,8 @@ export default function AdminPhotos() {
 
   const signOut = () => {
     requestIdRef.current++;
-    setToken("");
+    void fetch("/api/admin/session", { method: "DELETE", credentials: "same-origin" });
+    setAuthenticated(false);
     setPassword("");
     setPhotos([]);
     setPage(1);
@@ -165,7 +206,11 @@ export default function AdminPhotos() {
     setError("");
   };
 
-  if (!token) {
+  if (checkingSession) {
+    return <main className={styles.loginPage}><section className={styles.loginPanel} aria-live="polite"><div className={styles.brand}><img src="/frames/Witty_Logo%201.png" alt="Witty"/><span>Joy of Giving</span></div><p className={styles.sessionCheck}>Checking admin access...</p></section></main>;
+  }
+
+  if (!authenticated) {
     return <main className={styles.loginPage}>
       <section className={styles.loginPanel} aria-labelledby="admin-login-title">
         <div className={styles.brand}><img src="/frames/Witty_Logo%201.png" alt="Witty"/><span>Joy of Giving</span></div>
