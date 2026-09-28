@@ -136,3 +136,49 @@ export async function GET(request: Request) {
     return Response.json({ error: "Cloud photos could not be loaded." }, { status: 502 });
   }
 }
+
+export async function DELETE(request: Request) {
+  const requestOrigin = request.headers.get("origin");
+  if (requestOrigin && requestOrigin !== new URL(request.url).origin) {
+    return Response.json({ error: "Cross-origin deletion is not allowed." }, { status: 403 });
+  }
+  if (!process.env.PHOTO_ADMIN_TOKEN) {
+    return Response.json({ error: "Photo administration is not configured." }, { status: 503 });
+  }
+  if (!hasPhotoAdminAccess(request)) {
+    return Response.json({ error: "Unauthorized." }, { status: 401 });
+  }
+  if (!configureCloudinary()) {
+    return Response.json({ error: "Cloud photo storage is not configured." }, { status: 503 });
+  }
+
+  const body = await request.json().catch(() => null) as { publicId?: unknown } | null;
+  const publicId = body?.publicId;
+  if (
+    typeof publicId !== "string" ||
+    !publicId.startsWith(`${CLOUD_PHOTO_FOLDER}/`) ||
+    publicId.length > 255 ||
+    publicId.includes("..") ||
+    /[\u0000-\u001f\u007f]/.test(publicId)
+  ) {
+    return Response.json({ error: "Invalid photo identifier." }, { status: 400 });
+  }
+
+  try {
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: "image",
+      type: "authenticated",
+      invalidate: true,
+    });
+    if (result.result !== "ok" && result.result !== "not found") {
+      return Response.json({ error: "The photo could not be deleted." }, { status: 502 });
+    }
+    return Response.json(
+      { deleted: true, alreadyDeleted: result.result === "not found" },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    console.error("Cloudinary photo deletion failed", error);
+    return Response.json({ error: "The photo could not be deleted." }, { status: 502 });
+  }
+}

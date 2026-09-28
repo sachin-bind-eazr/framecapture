@@ -72,13 +72,15 @@
 .photoInfo { min-height: 63px; padding: 11px 12px 9px; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #e1e6e4; }
 .photoInfo strong { overflow: hidden; color: #193a32; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .photoInfo span { color: #6a7974; font-size: 10px; line-height: 1.4; }
-.photoActions { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #e1e6e4; }
+.photoActions { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid #e1e6e4; }
 .photoActions a,
 .photoActions button { min-height: 42px; display: grid; place-items: center; padding: 6px; border: 0; border-radius: 0; background: #fff; color: #17634f; font: inherit; font-size: 12px; font-weight: 800; text-decoration: none; }
-.photoActions > :first-child { border-right: 1px solid #e1e6e4; }
+.photoActions > :not(:last-child) { border-right: 1px solid #e1e6e4; }
 .photoActions a:hover,
 .photoActions button:hover { background: #edf5f1; }
 .photoActions button:disabled { color: #6f7d78; }
+.photoActions .deleteButton { color: #a52a35; }
+.photoActions .deleteButton:hover:not(:disabled) { background: #fff0f1; color: #81202a; }
 
 .empty { min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; }
 .empty strong { font-family: Georgia, serif; font-size: 24px; }

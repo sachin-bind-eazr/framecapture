@@ -49,6 +49,7 @@ export default function AdminPhotos() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const requestIdRef = useRef(0);
 
   const loadPhotos = useCallback(async (cursor: string, targetPage: number, limit: number) => {
@@ -162,7 +163,7 @@ export default function AdminPhotos() {
   };
 
   const downloadPhoto = async (photo: CloudPhoto) => {
-    if (downloading) return;
+    if (downloading || deleting) return;
     setDownloading(photo.publicId);
     setError("");
     try {
@@ -193,6 +194,46 @@ export default function AdminPhotos() {
     }
   };
 
+  const deletePhoto = async (photo: CloudPhoto) => {
+    if (deleting || downloading) return;
+    const confirmed = window.confirm("Delete this photo permanently? This action cannot be undone.");
+    if (!confirmed) return;
+
+    setDeleting(photo.publicId);
+    setError("");
+    try {
+      const response = await fetch("/api/photos", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ publicId: photo.publicId }),
+      });
+      const result = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) {
+        if (response.status === 401) {
+          setAuthenticated(false);
+          setPhotos([]);
+          throw new Error("Your admin session has expired. Sign in again.");
+        }
+        throw new Error(result?.error || "Photo deletion failed.");
+      }
+
+      setPhotos((current) => current.filter((item) => item.publicId !== photo.publicId));
+      const isLastPhotoOnPage = photos.length === 1;
+      if (isLastPhotoOnPage && page > 1) {
+        const previousPage = page - 1;
+        await loadPhotos(cursorHistory[previousPage - 1] || "", previousPage, pageSize);
+        setCursorHistory((current) => current.slice(0, previousPage));
+      } else {
+        await loadPhotos(cursorHistory[page - 1] || "", page, pageSize);
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Photo deletion failed.");
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const signOut = () => {
     requestIdRef.current++;
     void fetch("/api/admin/session", { method: "DELETE", credentials: "same-origin" });
@@ -203,6 +244,8 @@ export default function AdminPhotos() {
     setCursorHistory([""]);
     setNextCursor(null);
     setLoading(false);
+    setDeleting(null);
+    setDownloading(null);
     setError("");
   };
 
@@ -256,7 +299,8 @@ export default function AdminPhotos() {
           </div>
           <div className={styles.photoActions}>
             <a href={photo.url} target="_blank" rel="noreferrer">View</a>
-            <button onClick={() => void downloadPhoto(photo)} disabled={downloading !== null}>{downloading === photo.publicId ? "Downloading..." : "Download"}</button>
+            <button onClick={() => void downloadPhoto(photo)} disabled={downloading !== null || deleting !== null}>{downloading === photo.publicId ? "Downloading..." : "Download"}</button>
+            <button className={styles.deleteButton} onClick={() => void deletePhoto(photo)} disabled={deleting !== null || downloading !== null} aria-label={`Delete ${formatFrame(photo.frameId)} photo permanently`}>{deleting === photo.publicId ? "Deleting..." : "Delete"}</button>
           </div>
         </article>)}
       </div>}

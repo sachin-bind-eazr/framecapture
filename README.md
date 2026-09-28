@@ -6,7 +6,7 @@ Cloud uploads require `CLOUD_NAME`, `API_KEY`, and `API_SECRET` in the deploymen
 
 The protected `GET /api/photos` route lists stored photos in newest-first pages. Set a strong `PHOTO_ADMIN_TOKEN` in the deployment environment and send it as `Authorization: Bearer <token>`. Use `maxResults` (1-100) and the returned `nextCursor` for pagination.
 
-The unlinked admin photo library is available at `/admin/photos`. It requests the same `PHOTO_ADMIN_TOKEN`, supports selectable page sizes and cursor pagination, and downloads authenticated assets through `/api/photos/download`.
+The unlinked admin photo library is available at `/admin/photos`. It requests the same `PHOTO_ADMIN_TOKEN`, supports selectable page sizes and cursor pagination, downloads authenticated assets through `/api/photos/download`, and can permanently delete individual cloud photos after confirmation.
 
 ```bash
 curl -H "Authorization: Bearer $PHOTO_ADMIN_TOKEN" \
